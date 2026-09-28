@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr. X — محمّل الوسائط الاحترافي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Cairo:wght@300;600;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- خلفية الدائرة التكنولوجية -->
+    <div class="tech-bg"></div>
+
+    <div class="container">
+        <!-- الشعار -->
+        <header class="hero">
+            <div class="shield">
+                <svg viewBox="0 0 200 220" class="panther-logo">
+                    <defs>
+                        <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#4fc3f7"/>
+                            <stop offset="100%" stop-color="#0d47a1"/>
+                        </linearGradient>
+                        <linearGradient id="pantherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#1a1a2e"/>
+                            <stop offset="100%" stop-color="#000000"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- الدرع -->
+                    <path d="M100 10 L190 50 L190 130 Q190 190 100 210 Q10 190 10 130 L10 50 Z"
+                          fill="url(#pantherGrad)" stroke="url(#shieldGrad)" stroke-width="3"/>
+                    <!-- رأس الفهد المبسط -->
+                    <path d="M60 80 L80 60 L100 75 L120 60 L140 80 L135 110 L120 130 L100 145 L80 130 L65 110 Z"
+                          fill="url(#pantherGrad)" stroke="#4fc3f7" stroke-width="2"/>
+                    <!-- العينان -->
+                    <polygon points="75,95 90,100 75,105" fill="#00e5ff"/>
+                    <polygon points="125,95 110,100 125,105" fill="#00e5ff"/>
+                </svg>
+            </div>
+            <h1 class="brand">Mr.<span>X</span></h1>
+            <p class="tagline">محمّل الوسائط الاحترافي — يدعم +1000 موقع</p>
+        </header>
+
+        <!-- صندوق الإدخال -->
+        <section class="input-section">
+            <textarea id="urlInput" placeholder="الصق رابطاً واحداً أو أكثر (سطر لكل رابط)..."></textarea>
+            <div class="options">
+                <div class="format-toggle">
+                    <button class="fmt-btn active" data-format="mp4">🎬 MP4</button>
+                    <button class="fmt-btn" data-format="mp3">🎵 MP3</button>
+                </div>
+                <button id="fetchBtn" class="primary-btn">🔍 جلب المعلومات</button>
+            </div>
+        </section>
+
+        <!-- نتائج الفيديوهات -->
+        <section id="results" class="results"></section>
+
+        <!-- التحميلات النشطة -->
+        <section id="activeDownloads" class="active-downloads"></section>
+
+        <footer class="footer">
+            <p>© 2026 Mr. X — أداة مفتوحة المصدر للاستخدام الشخصي</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
