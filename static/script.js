@@ -27,10 +27,10 @@ const translations = {
     },
     en: {
         follow: "Follow me on X",
-        tagline: "Professional Media Downloader — Supports 1000+ Sites",
+        tagline: " Media Downloader — Supports 1000+ Sites",
         inputPlaceholder: "Paste one or more URLs (one per line)...",
         fetchBtn: "🔍 Fetch Info",
-        footer: "© 2026 Mr. X — Open-source tool for personal use",
+        footer: "© 2026 Mr. X — ",
         fetching: "⏳ Fetching...",
         download: "⬇ Download",
         downloading: "⏳ Downloading...",
