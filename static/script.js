@@ -52,33 +52,80 @@ const translations = {
 
 let currentLang = localStorage.getItem('mrx-lang') || 'ar';
 let currentQuota = 5;
+let currentFormat = 'mp4';
 
+/* ============================
+   تطبيق اللغة
+   ============================ */
 function applyLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('mrx-lang', lang);
 
     const html = document.getElementById('htmlRoot');
-    html.setAttribute('lang', lang);
-    html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    if (html) {
+        html.setAttribute('lang', lang);
+        html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    }
 
+    // تحديث جميع النصوص
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (translations[lang][key]) el.textContent = translations[lang][key];
+        if (translations[lang] && translations[lang][key]) {
+            el.textContent = translations[lang][key];
+        }
     });
 
+    // تحديث الـ placeholders
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
-        if (translations[lang][key]) el.placeholder = translations[lang][key];
+        if (translations[lang] && translations[lang][key]) {
+            el.placeholder = translations[lang][key];
+        }
     });
 
-    document.querySelector('.lang-current').textContent =
-        lang === 'ar' ? '🇬🇧 English' : '🇸🇦 عربي';
+    // تحديث زر اللغة
+    const langCurrent = document.querySelector('.lang-current');
+    if (langCurrent) {
+        langCurrent.textContent = lang === 'ar' ? '🇬🇧 English' : '🇸🇦 عربي';
+    }
 
-    updateQuotaBadge(currentQuota);
+    // تحديث العداد
+    if (typeof updateQuotaBadge === 'function') {
+        updateQuotaBadge(currentQuota);
+    }
 }
 
-document.getElementById('langToggle').addEventListener('click', () => {
-    applyLanguage(currentLang === 'ar' ? 'en' : 'ar');
+/* ============================
+   ربط زر اللغة
+   ============================ */
+document.addEventListener('DOMContentLoaded', () => {
+    const langToggle = document.getElementById('langToggle');
+    if (langToggle) {
+        langToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newLang = currentLang === 'ar' ? 'en' : 'ar';
+            applyLanguage(newLang);
+        });
+    }
+
+    // ربط زر الصيغة
+    document.querySelectorAll('.fmt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFormat = btn.dataset.format;
+        });
+    });
+
+    // ربط زر الجلب
+    const fetchBtn = document.getElementById('fetchBtn');
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', handleFetch);
+    }
+
+    // تهيئة اللغة عند التحميل
+    applyLanguage(currentLang);
+    fetchQuota();
 });
 
 /* ============================
@@ -88,6 +135,8 @@ function updateQuotaBadge(remaining) {
     currentQuota = remaining;
     const badge = document.getElementById('quotaBadge');
     const text = document.getElementById('quotaText');
+    if (!badge || !text) return;
+
     text.textContent = `${remaining}/5`;
 
     badge.classList.remove('low', 'empty');
@@ -122,21 +171,11 @@ function showToast(message, type = 'info') {
 }
 
 /* ============================
-   منطق الواجهة
+   معالجة جلب المعلومات
    ============================ */
-let currentFormat = 'mp4';
-
-document.querySelectorAll('.fmt-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentFormat = btn.dataset.format;
-    });
-});
-
-document.getElementById('fetchBtn').addEventListener('click', async () => {
-    const input = document.getElementById('urlInput').value;
-    const urls = input.split('\n').map(u => u.trim()).filter(u => u);
+async function handleFetch() {
+    const input = document.getElementById('urlInput');
+    const urls = input.value.split('\n').map(u => u.trim()).filter(u => u);
 
     if (!urls.length) {
         showToast(translations[currentLang].errorEmpty, 'error');
@@ -146,6 +185,7 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     const btn = document.getElementById('fetchBtn');
     const span = btn.querySelector('span');
     btn.disabled = true;
+    const originalText = span ? span.textContent : '';
     if (span) span.textContent = translations[currentLang].fetching;
 
     try {
@@ -162,8 +202,11 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
         btn.disabled = false;
         if (span) span.textContent = translations[currentLang].fetchBtn;
     }
-});
+}
 
+/* ============================
+   عرض النتائج
+   ============================ */
 function renderResults(results) {
     const container = document.getElementById('results');
     container.innerHTML = '';
@@ -209,83 +252,90 @@ function renderResults(results) {
         const progressBar = card.querySelector('.progress-bar');
         const progressFill = card.querySelector('.progress-fill');
 
-        dlBtn.addEventListener('click', async () => {
-            dlBtn.disabled = true;
-            dlBtn.textContent = t.downloading;
-            progressBar.style.display = 'block';
-
-            try {
-                const res = await fetch('/api/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        url: item.url,
-                        format: currentFormat,
-                        quality: quality.value
-                    })
-                });
-
-                // التحقق من الحد اليومي
-                if (res.status === 429) {
-                    const errData = await res.json();
-                    showToast(t.rateLimit, 'error');
-                    dlBtn.disabled = false;
-                    dlBtn.textContent = t.download;
-                    progressBar.style.display = 'none';
-                    updateQuotaBadge(0);
-                    return;
-                }
-
-                const data = await res.json();
-
-                // تحديث العداد
-                if (typeof data.remaining !== 'undefined') {
-                    updateQuotaBadge(data.remaining);
-                }
-
-                const interval = setInterval(async () => {
-                    const statusRes = await fetch(`/api/status/${data.download_id}`);
-                    const status = await statusRes.json();
-
-                    progressFill.style.width = (status.progress || 0) + '%';
-
-                    if (status.status === 'completed') {
-                        clearInterval(interval);
-                        dlBtn.textContent = t.ready;
-                        dlBtn.style.background = 'linear-gradient(135deg, #00e676, #00c853)';
-                        dlBtn.disabled = false;
-
-                        dlBtn.onclick = () => {
-                            if (status.filename) {
-                                window.location.href = `/downloads/${encodeURIComponent(status.filename)}`;
-                                showToast(t.readyMsg, 'success');
-                            } else {
-                                showToast(translations[currentLang].noFile, 'error');
-                            }
-                        };
-
-                        const successMsg = document.createElement('div');
-                        successMsg.style.cssText = 'color: #00e676; font-size: 0.9rem; margin-top: 8px;';
-                        successMsg.textContent = t.readyMsg;
-                        card.querySelector('.video-info').appendChild(successMsg);
-
-                    } else if (status.status === 'error') {
-                        clearInterval(interval);
-                        dlBtn.textContent = t.failed;
-                        dlBtn.style.background = 'linear-gradient(135deg, #d32f2f, #b71c1c)';
-                    }
-                }, 1000);
-            } catch (err) {
-                showToast(t.errorFetch + err.message, 'error');
-                dlBtn.disabled = false;
-                dlBtn.textContent = t.download;
-            }
-        });
-
+        dlBtn.addEventListener('click', () => handleDownload(item, dlBtn, quality, progressBar, progressFill, card));
         container.appendChild(card);
     });
 }
 
+/* ============================
+   معالجة التحميل
+   ============================ */
+async function handleDownload(item, dlBtn, quality, progressBar, progressFill, card) {
+    const t = translations[currentLang];
+    dlBtn.disabled = true;
+    dlBtn.textContent = t.downloading;
+    progressBar.style.display = 'block';
+
+    try {
+        const res = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: item.url,
+                format: currentFormat,
+                quality: quality.value
+            })
+        });
+
+        if (res.status === 429) {
+            const errData = await res.json();
+            showToast(t.rateLimit, 'error');
+            dlBtn.disabled = false;
+            dlBtn.textContent = t.download;
+            progressBar.style.display = 'none';
+            updateQuotaBadge(0);
+            return;
+        }
+
+        const data = await res.json();
+
+        if (typeof data.remaining !== 'undefined') {
+            updateQuotaBadge(data.remaining);
+        }
+
+        const interval = setInterval(async () => {
+            const statusRes = await fetch(`/api/status/${data.download_id}`);
+            const status = await statusRes.json();
+
+            progressFill.style.width = (status.progress || 0) + '%';
+
+            if (status.status === 'completed') {
+                clearInterval(interval);
+                dlBtn.textContent = t.ready;
+                dlBtn.style.background = 'linear-gradient(135deg, #00e676, #00c853)';
+                dlBtn.disabled = false;
+
+                dlBtn.onclick = () => {
+                    if (status.filename) {
+                        window.location.href = `/downloads/${encodeURIComponent(status.filename)}`;
+                        showToast(t.readyMsg, 'success');
+                    } else {
+                        showToast(t.noFile, 'error');
+                    }
+                };
+
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = 'color: #00e676; font-size: 0.9rem; margin-top: 8px;';
+                successMsg.textContent = t.readyMsg;
+                card.querySelector('.video-info').appendChild(successMsg);
+
+            } else if (status.status === 'error') {
+                clearInterval(interval);
+                dlBtn.textContent = t.failed;
+                dlBtn.style.background = 'linear-gradient(135deg, #d32f2f, #b71c1c)';
+            }
+        }, 1000);
+
+    } catch (err) {
+        showToast(t.errorFetch + err.message, 'error');
+        dlBtn.disabled = false;
+        dlBtn.textContent = t.download;
+    }
+}
+
+/* ============================
+   تنسيق المدة
+   ============================ */
 function formatDuration(seconds) {
     if (!seconds) return '—';
     const h = Math.floor(seconds / 3600);
@@ -295,9 +345,3 @@ function formatDuration(seconds) {
         ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
         : `${m}:${s.toString().padStart(2,'0')}`;
 }
-
-/* ============================
-   تهيئة الصفحة
-   ============================ */
-applyLanguage(currentLang);
-fetchQuota();
